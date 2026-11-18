@@ -4,9 +4,38 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
-
+#include<pthread.h>
 // define Macros
 #define SERVER_PORT 8080
+
+void *recv_mess(void *server_fd)
+{
+  int recv_server_fd = *(int *)server_fd;
+  while (1)
+  {
+    int recv_data_descriptor;
+    char BUFFER[1024];
+    recv_data_descriptor = recv(recv_server_fd, BUFFER, 1023, 0);
+    //* 6. read data from server
+    if (recv_data_descriptor < 0)
+    {
+      printf("data retrival is failed\n");
+      close(recv_server_fd);
+      exit(EXIT_FAILURE);
+    }
+    else if (recv_data_descriptor == 0)
+    {
+      printf("connection closed by server\n");
+      close(recv_server_fd);
+      exit(EXIT_FAILURE);
+    }
+    BUFFER[recv_data_descriptor] = '\0';
+
+    printf("server -> %s\n", BUFFER);
+    memset(BUFFER, 0, strlen(BUFFER));
+  }
+  return NULL;
+}
 
 int main() {
   int child_socket_fd;
@@ -58,21 +87,22 @@ int main() {
   }
 
   printf("client connected\n");
-
+  pthread_t recv_thread;
+  pthread_create(&recv_thread, NULL, recv_mess, (void *)&child_socket_fd);
   while (1) {
-    recv_data_descriptor = recv(child_socket_fd, BUFFER, 1023, 0);
-    if (recv_data_descriptor < 0) {
-      printf("data retrival is failed, file descriptor -> %d\n",
-             recv_data_descriptor);
-      close(child_socket_fd);
-      exit(EXIT_FAILURE);
-    } else if (recv_data_descriptor == 0) {
-      printf("connection is closed by client\n");
-      close(child_socket_fd);
-      exit(EXIT_FAILURE);
-    }
-    printf("client -> %s\n", BUFFER);
-    memset(BUFFER, 0, strlen(BUFFER));
+    // recv_data_descriptor = recv(child_socket_fd, BUFFER, 1023, 0);
+    // if (recv_data_descriptor < 0) {
+    //   printf("data retrival is failed, file descriptor -> %d\n",
+    //          recv_data_descriptor);
+    //   close(child_socket_fd);
+    //   exit(EXIT_FAILURE);
+    // } else if (recv_data_descriptor == 0) {
+    //   printf("connection is closed by client\n");
+    //   close(child_socket_fd);
+    //   exit(EXIT_FAILURE);
+    // }
+    // printf("client -> %s\n", BUFFER);
+    // memset(BUFFER, 0, strlen(BUFFER));
 
     // char *message = "hello from server side, are you ready for data "
     //                 "transfer(innocent face)";
@@ -83,6 +113,7 @@ int main() {
     }
     send(child_socket_fd, message, strlen(message), 0);
     memset(message, 0, strlen(message));
+
   }
   // close(server_fd);
   close(child_socket_fd);
