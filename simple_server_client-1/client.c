@@ -6,9 +6,41 @@
 #include <sys/socket.h>
 #include <time.h>
 #include <unistd.h>
+#include <pthread.h>
+
+void *recv_mess(void *sock_fd)
+{
+  int recv_sock_fd = *(int *)sock_fd;
+  while (1)
+  {
+    int recv_data_descriptor;
+    char BUFFER[1024];
+    recv_data_descriptor = recv(recv_sock_fd, BUFFER, 1023, 0);
+    //* 6. read data from server
+    if (recv_data_descriptor < 0)
+    {
+      printf("data retrival is failed\n");
+      close(recv_sock_fd);
+      exit(EXIT_FAILURE);
+    }
+    else if (recv_data_descriptor == 0)
+    {
+      printf("connection closed by server\n");
+      close(recv_sock_fd);
+      exit(EXIT_FAILURE);
+    }
+    BUFFER[recv_data_descriptor] = '\0';
+
+    printf("server -> %s\n", BUFFER);
+    memset(BUFFER, 0, strlen(BUFFER));
+  }
+  return NULL;
+}
+
 // void close_conn()
 // TODO: do not forget to close the sockets
-int main() {
+int main()
+{
   //! fd -> file descriptor
   //! after calling socket() -> creates a socket and update the current
   //! process's process table that is fd 3(open file) is pointing to the socket
@@ -32,7 +64,8 @@ int main() {
 #define CL_ADDR_SIZE sizeof(cl_addr)
 
   //* 1. create a unbound socket
-  if ((sock_fd = socket(IPV4, SOCK_STREAM, 0)) < 0) {
+  if ((sock_fd = socket(IPV4, SOCK_STREAM, 0)) < 0)
+  {
     printf("socket cannot be created.... ");
     exit(EXIT_FAILURE);
   }
@@ -41,7 +74,8 @@ int main() {
   //* 2. create address
   cl_addr.sin_family = IPV4;
   cl_addr.sin_port = htons(0);
-  if (inet_pton(IPV4, cl_ip, &cl_addr.sin_addr) < 0) {
+  if (inet_pton(IPV4, cl_ip, &cl_addr.sin_addr) < 0)
+  {
     printf("invalid ip or not supported\n");
     close(sock_fd);
     exit(EXIT_FAILURE);
@@ -50,7 +84,8 @@ int main() {
   printf("client port number - %d\n", cl_addr.sin_port);
 
   //* 3. bind socket
-  if (bind(sock_fd, (struct sockaddr *)&cl_addr, CL_ADDR_SIZE) < 0) {
+  if (bind(sock_fd, (struct sockaddr *)&cl_addr, CL_ADDR_SIZE) < 0)
+  {
     printf("socket binding with address cannot be done\n");
     close(sock_fd);
     exit(EXIT_FAILURE);
@@ -59,14 +94,16 @@ int main() {
 
   serv_addr.sin_port = htons(SERV_PORT);
   serv_addr.sin_family = IPV4;
-  if ((inet_pton(IPV4, serv_ip, &serv_addr.sin_addr)) < 0) {
+  if ((inet_pton(IPV4, serv_ip, &serv_addr.sin_addr)) < 0)
+  {
     printf("server ip assigning is failed\n");
     close(sock_fd);
     exit(EXIT_FAILURE);
   }
 
   //* 4. connect(create a session)
-  if (connect(sock_fd, (struct sockaddr *)&serv_addr, CL_ADDR_SIZE) < 0) {
+  if (connect(sock_fd, (struct sockaddr *)&serv_addr, CL_ADDR_SIZE) < 0)
+  {
     printf("session establishment failed\n");
     close(sock_fd);
     exit(EXIT_FAILURE);
@@ -74,20 +111,26 @@ int main() {
 
   printf("session established successfully\n");
 
+  pthread_t recv_thread;
+  pthread_create(&recv_thread, NULL, recv_mess, (void *)&sock_fd);
+
   time_t exit_time;
-  do {
+  do
+  {
     char message[1024];
     char *msg_ptr = &message[0];
 
     // scanf("%s", message);
-    while ((*msg_ptr = (char)getchar()) != '\n') {
+    while ((*msg_ptr = (char)getchar()) != '\n')
+    {
       msg_ptr++;
       // printf("the charcter is %d and address is %zu", *--msg_ptr, &msg_ptr);
     };
     *msg_ptr = '\0';
 
     //* 5. send data
-    if (send(sock_fd, message, strlen(message), 0) < 0) {
+    if (send(sock_fd, message, strlen(message), 0) < 0)
+    {
       printf("failed to send message\n");
       close(sock_fd);
       exit(EXIT_FAILURE);
@@ -96,20 +139,20 @@ int main() {
 
     time(&exit_time);
 
-    recv_data_descriptor = recv(sock_fd, BUFFER, 1023, 0);
-    //* 6. read data from server
-    if (recv_data_descriptor < 0) {
-      printf("data retrival is failed\n");
-      close(sock_fd);
-      exit(EXIT_FAILURE);
-    } else if (recv_data_descriptor == 0) {
-      printf("connection closed by server\n");
-      close(sock_fd);
-      exit(EXIT_FAILURE);
-    }
+    // recv_data_descriptor = recv(sock_fd, BUFFER, 1023, 0);
+    // //* 6. read data from server
+    // if (recv_data_descriptor < 0) {
+    //   printf("data retrival is failed\n");
+    //   close(sock_fd);
+    //   exit(EXIT_FAILURE);
+    // } else if (recv_data_descriptor == 0) {
+    //   printf("connection closed by server\n");
+    //   close(sock_fd);
+    //   exit(EXIT_FAILURE);
+    // }
 
-    printf("server -> %s\n", BUFFER);
-    memset(BUFFER, 0, strlen(BUFFER));
+    // printf("server -> %s\n", BUFFER);
+    // memset(BUFFER, 0, strlen(BUFFER));
     // time_t exit_time = time(NULL);
     //! or you can do this
     // time_t exit_time;
